@@ -102,7 +102,7 @@
                         <div class="numbers">
                           <p class="card-category">....</p>
                           <h4 class="card-title">0</h4>
-                        </div>
+                     </div>
                       </div>
                     </div>
                   </div>

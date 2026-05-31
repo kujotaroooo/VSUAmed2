@@ -25,17 +25,21 @@ function updateStudent($data) {
     ]);
 }
 function addStdnt($conn, $post){
- 
-    $sqlCheck = "SELECT student_id FROM students WHERE student_number = ?";
+
+    // Safety: skip if student number is empty
+    if(empty(trim($post['num']))){
+        return false;
+    }
+
+    $sqlCheck = "SELECT student_id FROM students WHERE student_number = ? AND student_number != ''";
     $stmtCheck = $conn->prepare($sqlCheck);
     $stmtCheck->bind_param("s", $post['num']);
     $stmtCheck->execute();
- 
     $result = $stmtCheck->get_result();
- 
+
     if ($result->num_rows > 0) {
         return "exists";
-    }
+    }   
  
     $sql = "INSERT INTO students
     (student_number, first_name, last_name, middle_name, birth_date, sex, contact_number, stud_email)
@@ -85,28 +89,31 @@ function addStdnt($conn, $post){
         return $students;
     }
     
-    function getStudentsByYear($pr, $yr){
-        global $conn;
-        $sql = "SELECT *
-                FROM students AS s
-                INNER JOIN student_enrollment AS se ON se.student_id = s.student_id
-                INNER JOIN program AS p ON p.program_id = se.program_id
-                INNER JOIN year_level AS y ON y.year_level_id = se.year_level_id
-                INNER JOIN section AS sec ON sec.section_id = se.section_id
-                WHERE
-                    se.program_id = ?
-                    AND se.year_level_id = ?
-                ORDER BY sec.section_name asc, s.last_name asc, s.first_name asc";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ss", $pr, $yr);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $students = [];
-        while ($row = $result->fetch_assoc()) {
-            $students[] = $row;
-        }
-        return $students;
+   function getStudentsByYear($pr, $yr){
+    global $conn;
+    $sql = "SELECT s.*, se.*,
+                   p.program_code,
+                   y.year_level_name,
+                   sec.section_name
+            FROM students AS s
+            INNER JOIN student_enrollment AS se ON se.student_id = s.student_id
+            INNER JOIN program AS p ON p.program_id = se.program_id
+            INNER JOIN year_level AS y ON y.year_level_id = se.year_level_id
+            INNER JOIN section AS sec ON sec.section_id = se.section_id
+            WHERE
+                se.program_id = ?
+                AND se.year_level_id = ?
+            ORDER BY sec.section_name ASC, s.last_name ASC, s.first_name ASC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ss", $pr, $yr);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $students = [];
+    while ($row = $result->fetch_assoc()) {
+        $students[] = $row;
     }
+    return $students;
+}
  
     function getRecentVisits($id){
         global $conn;
@@ -127,18 +134,31 @@ function addStdnt($conn, $post){
         }
         return $records;
     }
- 
-    function getStudentById($id){
-        global $conn;
-        $sql = "SELECT *
-                FROM students
-                WHERE student_id = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        return $stmt->get_result()->fetch_assoc();
-    }
-    function deleteStudent($id) {
+ function getVisitCount($id){
+    global $conn;
+    $sql = "SELECT COUNT(*) as total FROM visits WHERE student_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $result = $stmt->get_result()->fetch_assoc();
+    return $result['total'] ?? 0;
+}
+function getStudentById($id){
+    global $conn;
+    $sql = "SELECT s.*,
+                   p.program_code,
+                   y.year_level_name,
+                   se.status
+            FROM students AS s
+            INNER JOIN student_enrollment AS se ON se.student_id = s.student_id
+            INNER JOIN program AS p ON p.program_id = se.program_id
+            INNER JOIN year_level AS y ON y.year_level_id = se.year_level_id
+            WHERE s.student_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}   function deleteStudent($id) {
     global $conn;
 
     $stmt = $conn->prepare("DELETE p FROM prescription p INNER JOIN visits v ON v.visit_id = p.visit_id WHERE v.student_id=?");

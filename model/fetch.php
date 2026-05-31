@@ -53,27 +53,32 @@
 
     }
 
-    function getVisitHistory(){
-        global $conn;
+function getVisitHistory(){
+    global $conn;
 
-        $sql = "SELECT * FROM visits AS v
-                INNER JOIN prescription AS p ON p.visit_id = v.visit_id
-                INNER JOIN students AS s ON s.student_id = v.student_id
-                INNER JOIN admin AS a ON a.staff_id = v.staff_id
-                ORDER BY v.created_at DESC";
-        $stmt = $conn->prepare($sql);
-        $stmt->execute();
+    $sql = "SELECT v.*, p.*, s.*, a.*,
+                   prog.program_name,
+                   sec.section_name,
+                   yl.year_level_name
+            FROM visits AS v
+            INNER JOIN prescription AS p ON p.visit_id = v.visit_id
+            INNER JOIN students AS s ON s.student_id = v.student_id
+            INNER JOIN admin AS a ON a.staff_id = v.staff_id
+            LEFT JOIN student_enrollment AS se ON se.student_id = s.student_id
+            LEFT JOIN program AS prog ON prog.program_id = se.program_id
+            LEFT JOIN section AS sec ON sec.section_id = se.section_id
+            LEFT JOIN year_level AS yl ON yl.year_level_id = se.year_level_id
+            ORDER BY v.created_at DESC";
 
-        $result = $stmt->get_result();
-
-        $section = [];
-
-        while($row = $result->fetch_assoc()){
-            $section[] = $row;
-        }
-        return $section;
-
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $history = [];
+    while($row = $result->fetch_assoc()){
+        $history[] = $row;
     }
+    return $history;
+}
 
     function getE_Student(){
         global $conn;
